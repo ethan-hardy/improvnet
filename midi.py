@@ -38,4 +38,4 @@ def _createQuantizedList(track, ticksPerBeat):
 def readFile(filename):
   file = MidiFile(filename)
 
-  return createQuantizedList(file.tracks[0], file.ticks_per_beat)
+  return _createQuantizedList(file.tracks[0], file.ticks_per_beat), file.ticks_per_beat
