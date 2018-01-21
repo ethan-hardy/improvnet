@@ -18,12 +18,12 @@ _CHORD_FORMULAS = {
   'm': [3, 7]
 }
 
-def _getPitch(root, modifier):
+def _get_pitch(root, modifier):
   return (root + modifier) % _PITCH_COUNT
 
-def _makeChordTones(root, formula):
+def _make_chord_tones(root, formula):
   offsets = [0] + _CHORD_FORMULAS[formula]
-  return [ _getPitch(root, offset) for offset in offsets ]
+  return [ _get_pitch(root, offset) for offset in offsets ]
 
 class Chord:
   def __init__(self, string):
@@ -38,11 +38,11 @@ class Chord:
     else:
       modifier = 0
 
-    formulaStartInd = 1 if modifier == 0 else 2
-    formula = string[formulaStartInd:]
+    formula_start_ind = 1 if modifier == 0 else 2
+    formula = string[formula_start_ind:]
 
-    self.root = _getPitch(_PITCH_MAP[letter], modifier)
-    self.chordTones = _makeChordTones(self.root, formula)
+    self.root = _get_pitch(_PITCH_MAP[letter], modifier)
+    self.chord_tones = _make_chord_tones(self.root, formula)
 
 _DURATIONS = {
   '-': -1, # replaced based on bar length
@@ -50,31 +50,31 @@ _DURATIONS = {
   ',': 1
 }
 
-def _parseChords(chordsStr, barLength):
-  chordsStr += '|'
+def _parse_chords(chords_str, bar_length):
+  chords_str += '|'
 
-  chordStart = 0
-  chordEnd = None
+  chord_start = 0
+  chord_end = None
   chords = []
   duration = None
 
-  for ind, char in enumerate(chordsStr):
+  for ind, char in enumerate(chords_str):
     if char in _DURATIONS:
-      incr = barLength if _DURATIONS[char] == -1 else _DURATIONS[char]
+      incr = bar_length if _DURATIONS[char] == -1 else _DURATIONS[char]
       duration = incr if duration is None else duration + incr
-      chordEnd = ind if chordEnd is None else chordEnd
+      chord_end = ind if chord_end is None else chord_end
     elif duration is not None:
-      lastChordStr = chordsStr[chordStart:chordEnd]
-      chord = Chord(lastChordStr)
+      last_chord_str = chords_str[chord_start:chord_end]
+      chord = Chord(last_chord_str)
       chords.extend([chord] * duration)
-      chordEnd = None
-      chordStart = ind
+      chord_end = None
+      chord_start = ind
       duration = None
 
   return chords
 
 
 class Progression:
-  def __init__(self, midiFilename, chordsStr, barLength=4):
-    self.midiFilename = midiFilename
-    self.chords = _parseChords(chordsStr, barLength)
+  def __init__(self, midi_filename, chords_str, bar_length=4):
+    self.midi_filename = midi_filename
+    self.chords = _parse_chords(chords_str, bar_length)

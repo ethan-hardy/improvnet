@@ -1,37 +1,66 @@
-from midi import readFile
+from midi import read_file
 from track_info import TRACKS
-from rnn import train
+from rnn import Rnn
 import numpy as np
 
 _LOWEST_NOTE = 58
 
 # 36 semitones possible (bell tone Bb up to altissimo B)
-# inp[0:35] - 1 if corresponding note was played last step,
+# we have an rnn for each note, which outputs the
+# probability that note should play next
+# inp[0:14] - 1 if corresponding note was played last step,
 #   0 otherwise (only one note should be 1)
-# inp[36] - 1 if note played was begun last step,
+# these 15 notes correspond to a range of notes from a
+# perfect fifth below the rnn's note to a perfect fifth above
+# eg, inp[7] is the note itself
+# inp[15] - 1 if note played was begun last step,
 #   0 if it was a continuation of a previous note
-# inp[37:48] - 1 if corresponding pitch is a chord tone
+# inp[16:27] - 1 if corresponding pitch is a chord tone
 #   for this step, 0 otherwise
 
-def _createNoteTensor(note):
-  tensor = [0] * 49
-  tensor[note['pitch'] - _LOWEST_NOTE] = 1
-  tensor[36] = 1 if note['isNoteBeginning'] else 0
-  for tone in note['chord'].chordTones:
-    tensor[37 + tone] = 1
+def _create_note_tensor(reference_note, note):
+  tensor = [0] * 27
+  distance = note - reference_note
+  if distance >= -7 && distance <= 7:
+    # note is within the range we care about
+    tensor[distance + 7] = 1
+
+  tensor[15] = 1 if note['is_note_beginning'] else 0
+  for tone in note['chord'].chord_tones:
+    tensor[16 + tone] = 1
 
   return tensor
 
-def _createInputTensor(notes, chords, ticksPerBeat):
+def _create_note_tensors(note):
+  return [ _create_note_tensor(ref, note) for ref in range(36) ]
+
+def _create_input_tensor(notes, chords, ticks_per_beat):
   for ind, note in enumerate(notes):
-    chordIndex = int(ind / ticksPerBeat) % len(chords)
-    note['chord'] = chords[chordIndex]
+    chord_index = int(ind / ticks_per_beat) % len(chords)
+    note['chord'] = chords[chord_index]
+    # convert from midi pitch to our 36 semitone system
+    note['pitch'] = note['pitch'] - _LOWEST_NOTE
 
-  return notes
+  return [ _create_note_tensors(note) for note in notes ]
 
+def _encode(bit):
+  # return [
+  #   bit,
+  #   0 if bit is 1 else 1
+  # ]
+  return bit
+
+rnn = Rnn()
 for progression in TRACKS:
-  notes, ticksPerBeat = readFile(progression.midiFilename)
-  inputTensor = _createInputTensor(notes, chords, ticksPerBeat)
-  train(inputTensor)
+  notes, ticks_per_beat = read_file(progression.midi_filename)
+  input_data = _create_input_tensor(notes, chords, ticks_per_beat)
+  input_labels = [
+    [ _encode(nt[7]) for nt in note_tensors ] for note_tensors in input_data
+  ]
+  del input_labels[0]
+  del input_data[-1]
+
+  rnn.train(input_labels, input_data)
+
 
 # TODO: automate fetching of sheet music pdfs and conversion to midi?
