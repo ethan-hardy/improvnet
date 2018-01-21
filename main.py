@@ -2,6 +2,7 @@ from midi import read_file
 from track_info import TRACKS
 from rnn import Rnn
 import numpy as np
+from constants import SEQUENCE_LENGTH
 
 _LOWEST_NOTE = 58
 
@@ -50,6 +51,15 @@ def _encode(bit):
   # ]
   return bit
 
+def _split(arr, chunk_size):
+  # discards the last chunk if it doesn't fit perfectly
+  ind = 0
+  result = []
+  while ind + chunk_size <= len(arr):
+    result.append(arr[ind:ind+chunk_size])
+
+  return result
+
 rnn = Rnn()
 for progression in TRACKS:
   notes, ticks_per_beat = read_file(progression.midi_filename)
@@ -57,10 +67,13 @@ for progression in TRACKS:
   input_labels = [
     [ _encode(nt[7]) for nt in note_tensors ] for note_tensors in input_data
   ]
-  del input_labels[0]
   del input_data[-1]
+  del input_labels[0]
 
-  rnn.train(input_labels, input_data)
+  rnn.train(
+    _split(input_data, SEQUENCE_LENGTH),
+    _split(input_labels, SEQUENCE_LENGTH)
+  )
 
 
 # TODO: automate fetching of sheet music pdfs and conversion to midi?
