@@ -1,4 +1,4 @@
-from midi import read_file
+from midi import read_file, REST
 from track_info import TRACKS
 from rnn import Rnn
 import numpy as np
@@ -14,21 +14,24 @@ _LOWEST_NOTE = 58
 # these 15 notes correspond to a range of notes from a
 # perfect fifth below the rnn's note to a perfect fifth above
 # eg, inp[7] is the note itself
-# inp[15] - 1 if note played was begun last step,
+# inp[15] - 1 if the current step is a rest (no note played)
+# inp[16] - 1 if note played was begun last step,
 #   0 if it was a continuation of a previous note
-# inp[16:27] - 1 if corresponding pitch is a chord tone
+# inp[17:28] - 1 if corresponding pitch is a chord tone
 #   for this step, 0 otherwise
 
 def _create_note_tensor(reference_note, note):
-  tensor = [0] * 27
+  tensor = [0] * INPUT_SIZE
   distance = note - reference_note
-  if distance >= -7 && distance <= 7:
+  if note = REST:
+    tensor[15] = 1
+  elif distance >= -7 && distance <= 7:
     # note is within the range we care about
     tensor[distance + 7] = 1
 
-  tensor[15] = 1 if note['is_note_beginning'] else 0
+  tensor[16] = 1 if note['is_note_beginning'] else 0
   for tone in note['chord'].chord_tones:
-    tensor[16 + tone] = 1
+    tensor[17 + tone] = 1
 
   return tensor
 
@@ -49,6 +52,8 @@ def _encode(bit):
   #   bit,
   #   0 if bit is 1 else 1
   # ]
+  # instead of one hot, sequence loss tf function wants
+  # an integer representing the result class
   return bit
 
 def _split(arr, chunk_size):
@@ -67,8 +72,8 @@ for progression in TRACKS:
   input_labels = [
     [ _encode(nt[7]) for nt in note_tensors ] for note_tensors in input_data
   ]
-  del input_data[-1]
   del input_labels[0]
+  input_labels.append(0) # add on one fake prediction of a rest
 
   rnn.train(
     _split(input_data, SEQUENCE_LENGTH),
