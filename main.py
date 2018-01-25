@@ -1,4 +1,4 @@
-from midi import read_file, REST
+from midi import read_file, create_file
 from track_info import TRACKS
 from rnn import Rnn
 import numpy as np
@@ -65,6 +65,23 @@ def _split(arr, chunk_size):
 
   return result
 
+def _transform_to_midi(notes):
+  midi_pitches = []
+  last_pitch = None
+  current_duration = 1
+  for note in notes:
+    midi_pitch = note + _LOWEST_NOTE
+    if last_pitch = midi_pitch:
+      current_duration += 1
+    elif last_pitch is not None:
+      midi_pitches.append(
+        {'pitch': last_pitch, 'duration': current_duration})
+      current_duration = 1
+      last_pitch = midi_pitch
+  midi_pitches.append(
+        {'pitch': last_pitch, 'duration': current_duration})
+  return midi_pitches
+
 rnn = Rnn()
 for progression in TRACKS:
   notes, ticks_per_beat = read_file(progression.midi_filename)
@@ -80,5 +97,8 @@ for progression in TRACKS:
     _split(input_labels, SEQUENCE_LENGTH)
   )
 
+notes = rnn.generate(TRACKS[0], 12) # pick a random start note about in the middle
+midi_pitches = _transform_to_midi(notes)
+create_file(midi_pitches)
 
 # TODO: automate fetching of sheet music pdfs and conversion to midi?
